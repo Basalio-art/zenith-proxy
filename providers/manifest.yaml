@@ -1,0 +1,208 @@
+# Provider manifest for stream-proxy
+# Defines host patterns, required headers, and quirks per provider
+
+providers:
+  - id: mkissa
+    name: "MKissa"
+    hosts:
+      - "repackager.wixmp.com"
+      - "allanime.day"
+      - "streamsb.net"
+      - "ok.ru"
+      - "streamlare.com"
+    header_sets:
+      default:
+        referer: "https://mkissa.to"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+      wixmp:
+        referer: "https://mkissa.to"
+    codecs:
+      wixmp: "none"
+    notes: "wixmp master.m3u8 works without headers; embeds need Referer"
+
+  - id: reanime
+    name: "ReAnime (FlixCloud)"
+    hosts:
+      - "fetch8.flixcloud.cc"
+      - "fetch9.flixcloud.cc"
+      - "vault-91.electrocdn.top"
+      - "vault-95.fallencdn.top"
+      - "flixcloud.cc"
+    header_sets:
+      flixcloud:
+        referer: "https://flixcloud.cc/"
+        origin: "https://flixcloud.cc"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    codecs:
+      flixcloud: "flixcloud-b64-xor"
+    quirks:
+      - "playlist_b64_xor"
+      - "segment_ext_spoof:.webp|.png -> .ts"
+      - "token_in_master_only"
+    notes: "Master playlist is base64+XOR encoded with playlist_key; child playlists same encoding; segments listed as .webp/.png but are MPEG-TS; fetch .ts instead"
+
+  - id: anikoto
+    name: "Anikoto (MegaPlay)"
+    hosts:
+      - "fetch.nexabloom.top"
+      - "wolfn.goldenanchor.space"
+      - "megaplay.buzz"
+      - "zbw4o.lunarfrontier.world"
+    header_sets:
+      megaplay:
+        referer: "https://megaplay.buzz/"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    codecs:
+      megaplay: "none"
+    notes: "Master on nexabloom, segments on wolfn.goldenanchor.space; Referer required; segments ignore Range (always 200)"
+
+  - id: animegg
+    name: "AnimeGG"
+    hosts:
+      - "www.animegg.org"
+    header_sets:
+      default:
+        referer: "https://www.animegg.org/"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    codecs:
+      default: "none"
+    notes: "MP4 via /play/<id>/video.mp4?for=<token>; requires Referer + 2 redirects; Range supported (206)"
+
+  - id: anizone
+    name: "AniZone"
+    hosts:
+      - "seiryuu.vid-cdn.xyz"
+    header_sets:
+      default:
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    codecs:
+      default: "none"
+    quirks:
+      - "aes128_keys_relative"
+    notes: "HLS with AES-128 keys (relative URIs); works bare; no dub for AoT"
+
+  - id: aniwaves
+    name: "AniWaves"
+    hosts:
+      - "ru-cdn1.echovideo.to"
+      - "ru-cdn2.echovideo.to"
+      - "play.echovideo.ru"
+      - "mfw09.org"
+      - "myvidplay.com"
+    header_sets:
+      echovideo:
+        referer: "https://play.echovideo.ru/"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+      byfms:
+        referer: "https://mfw09.org/"
+      dghg:
+        referer: "https://myvidplay.com/"
+    codecs:
+      echovideo: "none"
+    notes: "HLS with wrong Content-Type (image/jpeg); segments ignore Range; embeds need their own Referer"
+
+  - id: kaa
+    name: "KickAssAnime (CatStream)"
+    hosts:
+      - "hls.krussdomi.com"
+      - "st1.advancedairesearchlab.xyz"
+    header_sets:
+      krussdomi_master:
+        referer: "https://krussdomi.com/"
+        origin: "https://krussdomi.com"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+      krussdomi_segment:
+        origin: "https://krussdomi.com"  # NO trailing slash!
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    codecs:
+      krussdomi: "none"
+    quirks:
+      - "segment_origin_no_slash"
+    notes: "Master/variant need Referer; segments need Origin without trailing slash; BirdStream variant returns 502"
+
+  - id: animedunya
+    name: "AnimeDunya"
+    hosts:
+      - "fs2c.anime-dunya.com"
+    header_sets:
+      default:
+        referer: "https://anime-dunya.com/"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    codecs:
+      default: "none"
+    notes: "HLS with multiple subtitle tracks; works bare"
+
+  - id: animeonsen
+    name: "AnimeOnsen"
+    hosts:
+      - "cdn.animeonsen.xyz"
+      - "api.animeonsen.xyz"
+    header_sets:
+      default:
+        referer: "https://www.animeonsen.xyz/"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    codecs:
+      default: "none"
+    quirks:
+      - "dash_with_auth_optional"
+    notes: "DASH MPD + .m4s init/media; Authorization from anivexa is optional (Referer alone works); sub only"
+
+  - id: senshi
+    name: "Senshi"
+    hosts:
+      - "cdn1.anidap.biz"
+      - "senshi.to"
+    header_sets:
+      default:
+        referer: "https://senshi.to/"
+        user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
+    codecs:
+      default: "none"
+    notes: "Currently returns 404 on playlist URLs for tested titles (upstream issue)"
+
+  - id: anineko
+    name: "AniNeko"
+    hosts:
+      - "anineko.to"
+    header_sets:
+      default:
+        referer: "https://anineko.to/"
+    codecs:
+      default: "none"
+    notes: "No match for tested AniList IDs; upstream returns 200 but no ID mapping"
+
+  - id: anidbapp
+    name: "AniDBApp"
+    hosts:
+      - "anidb.app"
+    header_sets:
+      default:
+        referer: "https://anidb.app/"
+    codecs:
+      default: "none"
+    notes: "Upstream returns HTTP 503"
+
+  - id: animenosub
+    name: "AnimeNoSub"
+    hosts:
+      - "animenosub.to"
+      - "vidmoly.biz"
+      - "nova.upn.one"
+      - "bysesayeveum.com"
+    header_sets:
+      default:
+        referer: "https://animenosub.to/"
+    codecs:
+      default: "none"
+    notes: "Upstream returns HTTP 526 (Cloudflare origin cert invalid)"
+
+  - id: anibd
+    name: "AniBD"
+    hosts:
+      - "epeng.animeapps.top"
+    header_sets:
+      default:
+        referer: "https://animebd.one/"
+    codecs:
+      default: "none"
+    notes: "API endpoint returns 404 for all tested AniList IDs"

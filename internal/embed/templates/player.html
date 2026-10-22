@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Player</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; width: 100%; background: #000; overflow: hidden; }
+        #player-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+        video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+        .error-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; z-index: 10; }
+        .error-overlay.hidden { display: none; }
+        .error-title { font-size: 1.5rem; margin-bottom: 1rem; }
+        .error-message { font-size: 1rem; opacity: 0.8; max-width: 80%; }
+        .error-code { font-family: monospace; font-size: 0.85rem; opacity: 0.6; margin-top: 1rem; }
+        .loading { color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 1.2rem; }
+        .spinner { border: 3px solid #333; border-top: 3px solid #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 1rem; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="player-container">
+        <div class="loading" id="loading"><div class="spinner"></div>Loading stream...</div>
+        <div class="error-overlay hidden" id="errorOverlay">
+            <div class="error-title" id="errorTitle">Playback Error</div>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="error-code" id="errorCode"></div>
+        </div>
+    </div>
+
+    <script>{{.HLSJS}}</script>
+    <script>{{.DASHJS}}</script>
+    <script>
+        (function() {
+            const streamUrl = {{.StreamURL}};
+            const streamType = {{.StreamType}};
+            const poster = {{.Poster}};
+            const referer = {{.Referer}};
+
+            const container = document.getElementById('player-container');
+            const loading = document.getElementById('loading');
+            const errorOverlay = document.getElementById('errorOverlay');
+            const errorTitle = document.getElementById('errorTitle');
+            const errorMessage = document.getElementById('errorMessage');
+            const errorCode = document.getElementById('errorCode');
+
+            function showError(title, message, code) {
+                loading.classList.add('hidden');
+                errorTitle.textContent = title;
+                errorMessage.textContent = message;
+                errorCode.textContent = code ? 'Code: ' + code : '';
+                errorOverlay.classList.remove('hidden');
+            }
+
+            function hideLoading() {
+                loading.classList.add('hidden');
+            }
+
+            // Create video element
+            const video = document.createElement('video');
+            video.controls = true;
+            video.playsInline = true;
+            video.autoplay = true;
+            video.muted = true; // Required for autoplay on most browsers
+            if (poster) video.poster = poster;
+            container.appendChild(video);
+
+            // Unmute on user interaction
+            function enableSound() {
+                video.muted = false;
+                video.play().catch(() => {});
+                document.removeEventListener('click', enableSound);
+                document.removeEventListener('touchstart', enableSound);
+            }
+            document.addEventListener('click', enableSound);
+            document.addEventListener('touchstart', enableSound);
+
+            function initHLS(url) {
+                if (Hls.isSupported()) {
+                    const hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: true,
+                    });
+                    hls.loadSource(url);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        hideLoading();
+                        video.play().catch(() => {});
+                    });
+                    hls.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) {
+                            switch (data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR:
+                                    showError('Network Error', 'Failed to load stream. The stream may be unavailable or blocked.', 'HLS_NETWORK_ERROR');
+                                    break;
+                                case Hls.ErrorTypes.MEDIA_ERROR:
+                                    showError('Media Error', 'Stream format not supported.', 'HLS_MEDIA_ERROR');
+                                    break;
+                                default:
+                                    showError('Playback Error', 'An unexpected error occurred.', 'HLS_ERROR');
+                            }
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Native HLS (Safari)
+                    video.src = url;
+                    video.addEventListener('loadedmetadata', function() {
+                        hideLoading();
+                        video.play().catch(() => {});
+                    });
+                    video.addEventListener('error', function() {
+                        showError('Playback Error', 'Native HLS playback failed.', 'NATIVE_HLS_ERROR');
+                    });
+                } else {
+                    showError('Unsupported', 'HLS is not supported in this browser.', 'HLS_UNSUPPORTED');
+                }
+            }
+
+            function initDASH(url) {
+                if (typeof dashjs !== 'undefined') {
+                    const player = dashjs.MediaPlayer().create();
+                    player.initialize(video, url, true);
+                    player.setAutoPlay(true);
+                    player.on(dashjs.MediaPlayer.events.ERROR, function(e) {
+                        showError('DASH Error', 'Failed to play DASH stream: ' + (e.error?.message || 'Unknown error'), 'DASH_ERROR');
+                    });
+                    // Wait a bit for DASH to start
+                    setTimeout(function() {
+                        if (video.readyState >= 1) hideLoading();
+                    }, 2000);
+                } else {
+                    showError('Unsupported', 'DASH player not loaded.', 'DASH_UNSUPPORTED');
+                }
+            }
+
+            function initDirect(url, type) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', function() {
+                    hideLoading();
+                    video.play().catch(() => {});
+                });
+                video.addEventListener('error', function() {
+                    showError('Playback Error', 'Failed to play ' + type + ' stream.', type.toUpperCase() + '_ERROR');
+                });
+            }
+
+            // Start playback based on type
+            switch (streamType) {
+                case 'hls':
+                    initHLS(streamUrl);
+                    break;
+                case 'dash':
+                    initDASH(streamUrl);
+                    break;
+                case 'mp4':
+                case 'webm':
+                    initDirect(streamUrl, streamType);
+                    break;
+                default:
+                    showError('Unknown Stream Type', 'Cannot determine stream type: ' + streamType, 'UNKNOWN_TYPE');
+            }
+        })();
+    </script>
+</body>
+</html>
